@@ -1,4 +1,4 @@
-### Yelp-Prediction
+### Yelp-Predictions
 
 #### Advice to improve your Business
 
