@@ -1,0 +1,376 @@
+---
+title: "Capstone Project Yelp Business"
+author: "Memed"
+date: "22 novembre 2015"
+output: html_document
+---
+
+---
+title: "Capstone Project"
+author: "Memed"
+date: "Sunday, November 08, 2015"
+output: html_document
+runtime: shiny
+---
+---
+
+# PREDICTING RATING OF A BUSINESS
+
+---
+
+## Abstract
+
+Predicting user preferences, for items such as for commercial products, movies, and businesses, is an important and
+well-studied problem in recommendation systems.
+In this project, we investigate potential factors that may affect business performance on Yelp. 
+We use features available in the Yelp Business dataset, especially Business Attributes. 
+After preprocessing the data to handle missing values, we ran two selections techniques(Anova, Tree-Based), to evaluate which features might have the greatest importance.
+After that we performed regression models (linear regression). 
+Thus, in order to improve business performance, a future step would be to conduct additional analysis of review text to determine new features that might help the business to achieve a higher number of positive reviews.
+
+## INTRODUCTION
+
+Yelp, founded in 2004, is a multinational corporation that publishes crowd-sourced online reviews on local businesses.
+As of 2014, Yelp.com had 57 million reviews and 132 million monthly visitors [1]. A portion of their large dataset is available on the Yelp Dataset Challenge homepage, which includes data on 42,153 businesses, 252,898 users, and 1,125,458 reviews from the cities of Phoenix, Las Vegas, Madison, Waterloo, and Edinburgh [2]. 
+For businesses, the dataset includes business name, neighborhood, city, state, latitude and longitude, review rating, number of reviews as "review_count", and categories such as Ambiane Romantic. 
+The goal of this work is to analyze what factors may affect the performance of a business on Yelp. 
+Specifically, we wanted to investigate the effects of business attributes on the business rating.
+ 
+For this purpose, we used two methods of features selection to determine which features best predict business performance, as represented by star rating, and finally, we implement regression models (linear regression),and evaluate prediction models.
+
+---
+
+## Methods and Data
+
+### DATA PROCESSING
+
+```{r LoadingData, echo = FALSE}
+setwd("C:/mongodb/bin")
+load("allBusiness.RData")
+# Extracting attributes2 and stars out of data frame, ignoring first 
+# row because it was having value <NA>
+
+varnames<-colnames(allBusiness)
+attributesIndex<-grep("attributes",varnames)
+attributesStars<-grep("stars",varnames)
+subData<-allBusiness[2:nrow(allBusiness),c(attributesStars,attributesIndex)]
+```
+The dataset we used is available on the Yelp Dataset Challenge homepage. We limited ourselves to businesses, which included `r nrow(subData)` business records, with `r length(subData)` variables.
+We imported these json files into R arrays using mongodb for our analysis.
+
+```{r Cleandata, echo = FALSE} 
+
+clean.names <- function(df){colnames(df)<-gsub("[^[:alnum:][:space:]']","",colnames(df))# The above regex is much more straight forward. 
+#it replaces everything that's not alphanumeric signs, 
+#space or apostrophe (caret symbol!) with an empty string.delete spaces in variables names
+colnames(df)<-gsub(" ","",colnames(df))# delete spaces in variables names
+return(df)
+}
+
+subData <- clean.names(subData)
+subData <- subData[,!duplicated(colnames(subData))]
+
+subData$stars<-as.numeric(as.character(subData$stars))
+names(subData)[names(subData)==  "attributesAcceptsCreditCards"	]<-	"CreditCards"
+names(subData)[names(subData)==	"attributesOutdoorSeating"	]<-	"OutdoorSeatg"
+names(subData)[names(subData)==	"attributesAlcohol"	]<-	"Alcohol"
+names(subData)[names(subData)==	"attributesHasTV"	]<-	"HasTV"
+names(subData)[names(subData)==	"attributesAmbienceromantic"	]<-	"romantic"
+names(subData)[names(subData)==	"attributesAmbienceclassy"	]<-	"classy"
+names(subData)[names(subData)==	"attributesAmbiencedivey"	]<-	"divey"
+names(subData)[names(subData)==	"attributesAmbiencetrendy"	]<-	"trendy"
+names(subData)[names(subData)==	"attributesAmbiencecasual"	]<-	"casual"
+names(subData)[names(subData)==	"attributesGoodForDancing"	]<-	"Dancing"
+names(subData)[names(subData)==	"attributesCoatCheck"	]<-	"CoatCheck"
+names(subData)[names(subData)==	"attributesTakeout"	]<-	"Takeout"
+names(subData)[names(subData)==	"attributesWaiterService"	]<-	"WaiterService"
+names(subData)[names(subData)==	"attributesCaters"	]<-	"Caters"
+names(subData)[names(subData)==	"attributesGoodForlatenight"	]<-	"latenight"
+names(subData)[names(subData)==	"attributesGoodFordinner"	]<-	"dner"
+names(subData)[names(subData)==	"attributesGoodForbrunch"	]<-	"brunch"
+names(subData)[names(subData)==	"attributesParkingstreet"	]<-	"Parkgstreet"
+names(subData)[names(subData)==	"attributesParkinglot"	]<-	"Parkglot"
+names(subData)[names(subData)==	"attributesMusicdj"	]<-	"dj"
+names(subData)[names(subData)==	"attributesDriveThru"	]<-	"DriveThru"
+names(subData)[names(subData)==	"attributesMusickaraoke"	]<-	"karaoke"
+names(subData)[names(subData)==	"attributesMusicvideo"	]<-	"video"
+names(subData)[names(subData)==	"attributesBYOB"	]<-	"BYOB"
+names(subData)[names(subData)==	"attributesBYOBCorkage"	]<-	"BYOBCorkage"
+names(subData)[names(subData)==	"attributesGoodForKids"	]<-	"Kids"
+names(subData)[names(subData)==	"attributesDogsAllowed"	]<-	"DogsAllowed"
+names(subData)[names(subData)==	"attributesHairTypesSpecializedIncoloring"	]<-	"colorg"
+names(subData)[names(subData)==	"attributesHairTypesSpecializedIncurly"	]<-	"curly"
+names(subData)[names(subData)==	"attributesHairTypesSpecializedInkids"	]<-	"kids"
+names(subData)[names(subData)==	"attributesHairTypesSpecializedInasian"	]<-	"asian"
+names(subData)[names(subData)==	"attributesAcceptsInsurance"	]<-	"Acceptssurance"
+names(subData)[names(subData)==	"attributesPaymentTypesamex"	]<-	"amex"
+names(subData)[names(subData)==	"attributesPaymentTypesmastercard"	]<-	"mastercard"
+names(subData)[names(subData)==	"attributesPaymentTypesdiscover"	]<-	"discover"
+names(subData)[names(subData)==	"attributesDietaryRestrictionsglutenfree"	]<-	"glutenfree"
+names(subData)[names(subData)==	"attributesDietaryRestrictionskosher"	]<-	"kosher"
+names(subData)[names(subData)==	"attributesDietaryRestrictionssoyfree"	]<-	"soyfree"
+names(subData)[names(subData)==	"attributesHappyHour"	]<-	"HappyHour"
+names(subData)[names(subData)==	"attributesGoodForGroups"	]<-	"Groups"
+names(subData)[names(subData)==	"attributesPriceRange"	]<-	"PriceRange"
+names(subData)[names(subData)==	"attributesNoiseLevel"	]<-	"NoiseLevel"
+names(subData)[names(subData)==	"attributesAttire"	]<-	"Attire"
+names(subData)[names(subData)==	"attributesAmbienceintimate"	]<-	"intimate"
+names(subData)[names(subData)==	"attributesAmbiencehipster"	]<-	"hipster"
+names(subData)[names(subData)==	"attributesAmbiencetouristy"	]<-	"touristy"
+names(subData)[names(subData)==	"attributesAmbienceupscale"	]<-	"upscale"
+names(subData)[names(subData)==	"attributesGoodforKids"	]<-	"Kids"
+names(subData)[names(subData)==	"attributesDelivery"	]<-	"Delivery"
+names(subData)[names(subData)==	"attributesSmoking"	]<-	"Smokg"
+names(subData)[names(subData)==	"attributesTakesReservations"	]<-	"Reservations"
+names(subData)[names(subData)==	"attributesWiFi"	]<-	"WiFi"
+names(subData)[names(subData)==	"attributesGoodFordessert"	]<-	"dessert"
+names(subData)[names(subData)==	"attributesGoodForlunch"	]<-	"lunch"
+names(subData)[names(subData)==	"attributesGoodForbreakfast"	]<-	"breakfast"
+names(subData)[names(subData)==	"attributesParkinggarage"	]<-	"Parkggarage"
+names(subData)[names(subData)==	"attributesParkingvalidated"	]<-	"Parkgvalidated"
+names(subData)[names(subData)==	"attributesParkingvalet"	]<-	"Parkgvalet"
+names(subData)[names(subData)==	"attributesWheelchairAccessible"	]<-	"Wheelchair"
+names(subData)[names(subData)==	"attributesMusicbackgroundmusic"	]<-	"background"
+names(subData)[names(subData)==	"attributesMusiclive"	]<-	"live"
+names(subData)[names(subData)==	"attributesMusicjukebox"	]<-	"jukebox"
+names(subData)[names(subData)==	"attributesCorkage"	]<-	"Corkage"
+names(subData)[names(subData)==	"attributesOrderatCounter"	]<-	"OrderatCounter"
+names(subData)[names(subData)==	"attributesByAppointmentOnly"	]<-	"Appointment"
+names(subData)[names(subData)==	"attributesOpen24Hours"	]<-	"Open24Hours"
+names(subData)[names(subData)==	"attributesHairTypesSpecializedInafricanamerican"	]<-	"africameric"
+names(subData)[names(subData)==	"attributesHairTypesSpecializedInperms"	]<-	"perms"
+names(subData)[names(subData)==	"attributesHairTypesSpecializedInextensions"	]<-	"extensions"
+names(subData)[names(subData)==	"attributesHairTypesSpecializedInstraightperms"	]<-	"straightperms"
+names(subData)[names(subData)==	"attributesAgesAllowed"	]<-	"AgesAllowed"
+names(subData)[names(subData)==	"attributesPaymentTypescashonly"	]<-	"cashonly"
+names(subData)[names(subData)==	"attributesPaymentTypesvisa"	]<-	"visa"
+names(subData)[names(subData)==	"attributesDietaryRestrictionsdairyfree"	]<-	"dairyfree"
+names(subData)[names(subData)==	"attributesDietaryRestrictionsvegan"	]<-	"vegan"
+names(subData)[names(subData)==	"attributesDietaryRestrictionshalal"	]<-	"halal"
+names(subData)[names(subData)==	"attributesDietaryRestrictionsvegetarian"	]<-	"vegetarian"
+
+# Change <NA> to "dnr" (No respond).
+#Add Factor Level "NR"
+add_NR <- function(x){
+  if(is.factor(x)) return(factor(x, levels=c(levels(x), "NR"))) 
+  return(x)
+}
+subData <- as.data.frame(lapply(subData, add_NR))
+subData[is.na(subData)] <- "NR"
+var2<-as.data.frame(summary(subData))
+splitFreq = data.frame(do.call("rbind", strsplit(as.character(var2$Freq), ":")))
+names(splitFreq) = c("level","Freq")
+var2 = data.frame(var2$Var2,splitFreq$level,splitFreq$Freq)
+names(var2) = c("Attribute","level","Freq")
+var2$Freq<-as.numeric(as.character(var2$Freq))
+
+#Extracting NA out of data frame
+varNA<-which(var2$Freq!="NA")
+#varNA<-grep("NA",var2$Freq)
+var2<-var2[varNA,]
+var2$level<-gsub(" ","",var2$level)
+
+varTF<-var2[which(var2$level!="NR"),]
+varT<-varTF[which(varTF$level!="FALSE"),]
+varT<-varT[which(varT$level!="no"),]
+varT<-varT[which(varT$level!="none"),]
+varT$Factors<-paste(varT$Attribute,varT$level,sep = "_")
+
+varF<-varTF[which(varTF$level=="FALSE"),]
+varF$Factors<-paste(varF$Attribute,varF$level,sep = "_")
+varT <- varT[order(varT$Freq, decreasing = TRUE), ]
+TwenTAttributes <- varT[1:20, ]
+varF<-varF[order(varF$Freq, decreasing = TRUE),]
+TwenFAttributes <- varF[1:20, ]
+
+```
+We limited ourselves to a subset of yelp businesses (subData)), which included `r nrow(subData)` records, with `r length(subData)` variables. To handle missing data, we Change <NA> to "NR" (No respond), and Add another Factor Level "NR".In subData, `r colnames(subData)[1]` is numeric, and the other `r length(subData)-1` variables are factors.
+
+```{r Stats_Drescr, echo=FALSE}
+library(e1071)
+library(plyr)
+library(vcd)
+Stats<- data.frame(
+               SumRat = sum(subData$stars),
+               Median=median(subData$stars),
+               Mean = mean(subData$stars),
+               Min_Star=min(subData$stars),
+               Max_Star=max(subData$stars),
+               stddev   = sd(subData$stars),
+               cv   = round(sd(subData$stars) /mean(subData$stars),2),
+               skewn = skewness(subData$stars),
+               kurto =kurtosis(subData$stars)
+               )
+```
+**The descriptive statistics of numerical variable are shown in the table below:**
+```{r kable, echo=FALSE}
+library(knitr)
+knitr::kable(Stats, digits=2)
+```
+
+---
+
+**Let us plot data for the 20 features that are highly appreciated and those unappreciated for business**
+
+```{r TopAttributes, echo=FALSE}
+library(ggplot2)
+par(mfrow = c(1, 2),cex = 0.8)
+ggplot(data = TwenTAttributes, aes(x = TwenTAttributes$Factors, y = TwenTAttributes$Freq)) + 
+    geom_bar(colour = "black", fill = "blue", stat = "identity") + xlab("Attribute Type") + 
+    ylab("Number") + ggtitle("Top 20 Appreciated Features") + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+    
+ggplot(data = TwenFAttributes, aes(x = TwenFAttributes$Factors, y = TwenFAttributes$Freq)) + 
+    geom_bar(colour = "black", fill = "blue", stat = "identity") + xlab("Attribute Type") + 
+    ylab("Number") + ggtitle("Top 20 Unappreciated Features") + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+With `r TwenTAttributes$Freq[1]` positive appréciations, businesses that accept `r TwenTAttributes$Attribute[1]` are the most appreciated, followed by `r TwenTAttributes$Attribute[2]` and `r TwenTAttributes$Attribute[3]`.  
+By contrast, businesses that do not have `r TwenFAttributes$Attribute[1]` , `r TwenFAttributes$Attribute[2]`, and `r TwenFAttributes$Attribute[3]` , are not appreciated.
+
+---
+
+### METHODS
+
+After this summary study of features,to determine which features might be most useful in predicting business performance, we will select a limited number of features that will enable us to train our model. 
+To this end, we explored two methods for future selections (Anova, Tree-Based), and compile selected features of both methods. 
+
+A. Anova Feature Selection
+
+We used the Anova F-value as the scoring function for the feature set, then selected features with the highest score since the F-values for  these features were significantly higher than the rest.
+
+```{r sudataAnova, echo=FALSE}
+reg2<-lm(formula = stars ~., data = subData)
+ansub<-anova(reg2)
+colnames(ansub)<-c("Df","SumSq","MeanSq","Fvalue","Pr")
+ansub <- ansub[order(ansub$Fvalue, decreasing = TRUE), ]
+```
+B. Tree-Based Feature Selection
+We used a tree-based estimator to compute feature importances, we choosed a coefficient of complexity cp= 0.0025371 which represent 6 nodes, and we  used the default gini criterion to evaluate splits and selected those features with the highest importance score.
+
+```{r sudataTree, echo=FALSE}
+library(rpart) # load librairy
+Yelp_Bus_db.tree=rpart(stars~.,data=subData, parms=list(split='gini'),cp=0.0025371)
+# here we choose cp= 0.0025371 which represent n=6 
+#Yelp_Bus_db.tree$cptable
+YelpImportance<-as.data.frame(Yelp_Bus_db.tree$variable.importance)
+varsub<-c(rownames(YelpImportance),rownames(ansub)[which(ansub$Pr<=0.05)])
+varModel<-c("stars",unique(varsub))
+```
+After compiling Anova and Tree-Based, there are `r length(varModel)-1` other predictor variables in the data set which may play bigger role to determination of business rating:
+`r print(varModel)`
+We can now split the cleaned training set into a pure training data set (70%) and a test data set (30%).
+We will use the test data set to conduct cross validation in future steps.
+
+```{r trainData,echo=FALSE} 
+set.seed(165) # For reproducibile purpose
+library(AppliedPredictiveModeling)
+library(caret)
+library(rpart)
+DataModel<-subData[,varModel]
+inTrain <- createDataPartition(DataModel$stars, p=0.70, list=F)
+trainData <- DataModel[inTrain, ]
+testData <- DataModel[-inTrain, ] 
+
+```
+
+---
+
+The new training dataset contains `r nrow(trainData)` observations while the testing data set contains `r nrow(testData)` observations.
+
+Stars are numeric and continuous, we will use Linear Regression
+
+- Y = a + b1 * x1 + b2 * x2 + b3 * x3 +.... bk * xk
+- Y = Continuous output value (stars)
+- x1,x2,...xk : Features of the input.
+- a, b1, b2..bk : Weights of the features.
+- Stars = F(BusinessAttributes)
+- Stars = a + b1 * (wifi) + b2 * (drive_thru)... etc
+
+```{r anavar2, echo=FALSE}
+reg<-lm(stars ~ ., data = trainData)
+analysis <- anova(lm(stars ~ ., data = trainData))
+
+colnames(analysis)<-c("Df","SumSq","MeanSq","Fvalue","Pr")
+varModel2<-rownames(analysis)[which(analysis$Pr<=0.05)]
+
+reg2<-summary(lm(stars ~ ., data = trainData))
+coeffReg<-as.data.frame(reg2$coefficients)
+colnames(coeffReg)<-c("Estimate","Std.Error","tvalue","Pr")
+
+coefMod<- coeffReg[which(coeffReg$Pr<=0.05),]
+coefModNR<-grep("NR$",rownames(coefMod))# index with NR at the end
+ccoefMod1<-coefMod[coefModNR,]
+ccoefMod2<-coefMod[-coefModNR,]
+
+coefMod1<- ccoefMod2[which(ccoefMod2$Estimate<0),]
+coefMod2<- ccoefMod2[which(ccoefMod2$Estimate>0),]
+
+coefMod1 <- coefMod1[order(coefMod1$Estimate, decreasing = FALSE), ]
+coefMod2 <- coefMod2[order(coefMod2$Estimate, decreasing = TRUE), ]
+
+NineAttributes1 <- coefMod1[1:7, ]
+NineAttributes2 <- coefMod2[2:8, ]
+AttributesAll<-data.frame(rownames(NineAttributes1),round(NineAttributes1$Estimate,2),
+rownames(NineAttributes2),round(NineAttributes2$Estimate,2))
+colnames(AttributesAll)<-c("Attributes","Hurting Features","Attributes","Helpfull Features")
+
+```
+
+---
+
+## Results
+
+After performing an analysis of variance model in the training dataset, the p-value of Model is very small we found
+we removed `r length(varModel)-length(varModel2)` variables with a p-value below 5%:
+
+```{r , echo=FALSE}
+#Global error rate
+tg=function(obs,prev)
+{
+table=table(prev,obs)
+TG= (table[1,2]+ table[2,1]) /( table[1,1]+table[1,2]+ table[2,1]+ table[2,2])
+print(TG)
+}
+
+#score de Pierce.
+pss=function(obs,prev)
+{
+table=table(prev,obs)
+H=table[2,2]/(table[2,2]+table[1,2])
+F=table[2,1]/(table[2,1]+table[1,1])
+PSS=H-F
+print(PSS)
+}
+
+tg1<-tg(round(testData$stars),round(predict(reg,testData)))
+
+pss1<-pss(round(testData$stars),round(predict(reg,testData)))
+```
+The Peirces skill score (PSS) is `r round(pss1,2)`, the global error rate (TG) is `r round(tg1,2)`, the root mean squared error (RMSE) is `r postResample(round(predict(reg,testData)),round(testData$stars))[1]` and this is our final model.
+
+**Hurting and Helpfull Attributes**
+
+`r kable(AttributesAll)` 
+
+## Discussion
+
+**Advices to improve your Business**
+
+**Don't:**
+
+- Have price Range between 2 and 4.
+- Accept only Credit Cards.
+- Have a Drive-Thru.
+- Paid WiFi.
+- Take out.
+- Have a noisy environment
+   
+**Do:**
+
+- Take Appointments.
+- Being well dressy and casual.
+- Play smooth/ambient background music.
+- have a parking in the street.
+- Dog friendly
+- offer a catering service
